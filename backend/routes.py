@@ -1,14 +1,15 @@
 """
-routes_additions.py — Flask endpoints for Predictions + Chatbot.
+routes.py — Flask endpoints for Predictions + Chatbot.
 
-Merge these into your existing routes.py (or app.py). Swap
-`get_user_expenses(user_id)` / `get_user_income(user_id)` for your
-real SQLAlchemy queries — they're stubbed here as the integration point.
+get_user_expenses() / get_user_income() come from data_store.py (an
+in-memory demo store for now) — swap that module for real SQLAlchemy
+queries when the real database is wired in, and these routes keep working.
 """
 
 from flask import Blueprint, request, jsonify
 from ai_engine import PredictionEngine
 from chatbot_engine import FinanceChatbot
+from data_store import get_user_expenses, get_user_income
 
 predictions_bp = Blueprint("predictions", __name__)
 chatbot_bp = Blueprint("chatbot", __name__)
@@ -17,8 +18,8 @@ chatbot = FinanceChatbot()
 
 @predictions_bp.route("/api/predictions/<int:user_id>", methods=["GET"])
 def get_predictions(user_id):
-    expenses = get_user_expenses(user_id)       # -> replace with real query
-    income = get_user_income(user_id)           # -> replace with real query
+    expenses = get_user_expenses(user_id)
+    income = get_user_income(user_id)
 
     engine = PredictionEngine(expenses)
     forecast = engine.forecast_month_end(income)
@@ -45,9 +46,3 @@ def chatbot_reply():
 
     result = chatbot.get_response(message, forecast)
     return jsonify(result)
-
-
-# Register in app.py:
-#   from routes_additions import predictions_bp, chatbot_bp
-#   app.register_blueprint(predictions_bp)
-#   app.register_blueprint(chatbot_bp)
