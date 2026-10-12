@@ -1,68 +1,48 @@
-# 1st Year Projects
+# Haunted Maze: The Learning Ghost
 
-A collection of projects built during 1st year: two standalone accessible-game demos, and a full-stack expense tracker (SIH 2026 project) with AI-powered predictions and a chatbot.
+A Halloween maze game in pure Java (Swing, no libraries). You are a witch who must collect 7 candies, open the exit door and escape a ghost. The ghost's brain depends on the difficulty, and on Hard the ghost learns.
 
-## Expense Tracker — SIH 2026 (`backend/` + `frontend/`)
+## Run it
+Needs a JDK (Java 11 or newer). Check with `java -version` and `javac -version`.
+- Mac/Linux: `bash run.sh`
+- Windows: double-click `run.bat`
 
-A student expense tracker with:
-- **Smart predictions** — weighted moving average + trend + day-of-week seasonality forecasting, a 0–100 confidence score, and category-wise spend forecasts (`backend/ai_engine.py`).
-- **AI finance chatbot** — answers questions about budget, daily limit, and spending trends, grounded in the user's own numbers. Uses Gemini for natural replies when `GEMINI_API_KEY` is set, and always has a rule-based fallback so it never breaks on stage (`backend/chatbot_engine.py`).
+Controls: arrow keys or WASD to move, R for a new game. Menu "Ghost > What has the learning ghost learned?" shows the ghost's policy.
 
-### Architecture
+## Difficulty = a different ghost brain
+| Level | Ghost | How it works |
+|---|---|---|
+| Easy | Random | wanders; ignores the player |
+| Medium | A* hunter | always steps along the shortest path to the player |
+| Hard | Q-learning | learns which hunting strategy works best in each situation |
 
+Trick or Treat: orange pumpkins open a popup. Treat = ghost frozen for 4 turns or +25 points. Trick = ghost gets a burst of speed for 4 turns.
+
+## Architecture
 ```
-backend/                  Flask API
-  app.py                  entry point — registers blueprints, runs on :5000
-  routes.py                /api/predictions/<user_id>, /api/chatbot
-  ai_engine.py             PredictionEngine (forecasting)
-  chatbot_engine.py        FinanceChatbot (Gemini + rule-based fallback)
-  data_store.py            in-memory demo data — swap for real DB queries
-  requirements.txt
-
-frontend/                 React app
-  src/App.js               renders Predictions + floating Chatbot
-  src/components/
-    Predictions.js/css      month-end forecast card + category chart (chart.js)
-    Chatbot.js/css          floating chat widget
-  package.json              proxies API calls to http://localhost:5000 in dev
+Main -> ui/GameWindow, ui/GamePanel (Swing: drawing and keys only)
+GameState   all rules, no graphics (turn based)
+Maze        DFS "recursive backtracker" + extra loops
+ai/         GhostBrain (interface), RandomBrain, AStarBrain + AStar, QLearningBrain, RunnerBot (simulated player)
+Simulation, Evaluate   run thousands of headless games to measure each brain
+HighScores  Hall of Fame in highscores.txt
 ```
+Rules are separate from the UI, so they can be tested and simulated quickly.
 
-`data_store.py` is the one thing to replace when the real database is ready — swap `get_user_expenses()` / `get_user_income()` for real SQLAlchemy queries and everything above it (predictions, chatbot) keeps working unchanged, exactly as described in the original integration notes.
+## The AI (what to explain)
+- **Maze:** depth-first search carves a perfect maze, then some walls are removed to make loops.
+- **A*:** f = g + h, g = steps so far, h = Manhattan distance to the goal. h never overestimates on a grid, so the path is shortest (tested against BFS on 400 random pairs).
+- **Q-learning:** the ghost picks a strategy (CHASE, AMBUSH, GUARD, PATROL) from 24 states (player distance x exit open x getting closer/further). Update: `Q(s,a) <- Q(s,a) + alpha*(r + gamma*max Q(s',a') - Q(s,a))`. Rewards: -1 per step, +2 when closer, +50 catch, -50 escape. Epsilon-greedy exploration. alpha and epsilon shrink during practice (annealing) so training is stable. The table is saved in `ghost_memory.txt`, so the ghost remembers between games and keeps learning (gently) while you play.
+- **Evidence it learns** (simulated runner, Hard speed): untrained ghost catches about 27%, trained ghost about 63-76%, A* about 54%, random about 2%. Run `java -cp out hauntedmaze.Evaluate`.
 
-### Running it
-
-**Backend**
-```bash
-cd backend
-python -m venv venv && source venv/bin/activate
-pip install -r requirements.txt
-python app.py        # http://localhost:5000
+## Tests
 ```
-Optional: `export GEMINI_API_KEY=...` for real conversational chatbot replies (works fine without it).
-
-**Frontend**
-```bash
-cd frontend
-npm install
-npm start             # http://localhost:3000, proxies /api to :5000
+javac -d out $(find src test -name "*.java")
+java -cp out hauntedmaze.SelfTest
 ```
+41 checks: maze connectivity and loops, A* optimality, game rules, trick or treat, Q-learning maths, saving and loading memory, high scores, and "trained beats untrained". Also verified on a virtual screen with real key presses.
 
-Both need to be running at the same time for the app to work end to end.
-
-### Demo tip
-The demo user (id 1) is seeded in `data_store.py` with expenses across the last several days, so the prediction confidence score and trend line look right immediately — thin data (1-2 days) makes both look weak.
-
-## Other projects
-
-### Unity Quest (`unity-quest/`)
-**One game, every ability.**
-
-A multiplayer game hub built so players with different abilities can compete fairly in the same match. Includes player/profile setup (roster management) and adaptive play modes.
-
-- Open `unity-quest/index.html` in a browser to run it
-- Structure: `index.html`, `css/`, `js/`
-
-### Triad Shift (`triad-shift.html`)
-A security triage game with three solo play modes — **Deaf**, **Blind**, and **Mute** — each designed to let a player complete the full shift independently, regardless of ability. Built by Team Infinity Loop.
-
-- Single-file app — just open `triad-shift.html` in a browser to play
+## Limitations (be honest)
+- The simulated player (RunnerBot) is simple, so catch rates are a proxy for a human player, not the same thing.
+- Q-learning here chooses between 4 strategies (small table), not individual steps, to learn fast. A deep RL agent could do more but needs far more training.
+- Results depend on random mazes, so numbers vary a little between runs.
