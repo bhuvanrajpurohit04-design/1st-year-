@@ -1,6 +1,6 @@
 # ATTENDLY – Smart Student Attendance & Management System
 
-**Live Deployed Application:** [https://cozy-axolotl-e4d544.netlify.app][(https://cozy-axolotl-e4d544.netlify.app)
+**Live Deployed Application:** https://cozy-axolotl-e4d544.netlify.app
 
 ## Project Overview
 
